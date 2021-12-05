@@ -2,25 +2,38 @@ package com.example.helloworld
 
 import android.app.SearchManager
 import android.database.Cursor
-import android.database.MatrixCursor
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.Menu
+import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.cursoradapter.widget.CursorAdapter
 import androidx.cursoradapter.widget.SimpleCursorAdapter
+import androidx.lifecycle.ViewModelProvider
+import com.example.helloworld.di.DaggerAppComponent
+import com.example.helloworld.di.MainViewModelFactory
 import com.example.helloworld.interfaces.BaseActivity
+import javax.inject.Inject
 
 class MainActivity : AppCompatActivity(), BaseActivity {
     private lateinit var searchView: SearchView
     private lateinit var cursorAdapter: CursorAdapter
+    private lateinit var mainViewModel: MainViewModel
     private val presenter by lazy { App.INSTANCE.presenter }
+
+    @Inject lateinit var viewModelFactory: MainViewModelFactory
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        presenter.attach(this)
+        //mainViewModel = ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
+        viewModelFactory = DaggerAppComponent.create().viewModelFactory()
+        mainViewModel = viewModelFactory.create(MainViewModel::class.java)
+        mainViewModel.responseLiveDate.observe(this) {
+            searchView.suggestionsAdapter.changeCursor(it)
+        }
+
+        //presenter.attach(this)
 
         cursorAdapter = SimpleCursorAdapter(
             this,
@@ -48,7 +61,7 @@ class MainActivity : AppCompatActivity(), BaseActivity {
             }
 
             override fun onQueryTextChange(query: String): Boolean {
-                if (query.length >=2) presenter.search(query)
+                if (query.length >=2) mainViewModel.search(query)  //presenter.search(query)
                 else searchView.suggestionsAdapter.changeCursor(null)
 
                 return true
@@ -71,7 +84,7 @@ class MainActivity : AppCompatActivity(), BaseActivity {
     }
 
     override fun onDestroy() {
-        presenter.detach()
+        //presenter.detach()
         super.onDestroy()
     }
 }
