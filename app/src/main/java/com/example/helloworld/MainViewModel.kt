@@ -1,27 +1,36 @@
 package com.example.helloworld
 
-import android.app.SearchManager
-import android.database.Cursor
-import android.database.MatrixCursor
-import android.provider.BaseColumns
 import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
-import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.kotlin.addTo
-import io.reactivex.rxjava3.kotlin.subscribeBy
+import androidx.lifecycle.*
+import com.example.helloworld.data.DataModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class MainViewModel @Inject constructor(private val repository: Repository) : ViewModel() {
-    private val _responseLiveData = MutableLiveData<Cursor>()
-    private val subscriptions = CompositeDisposable()
+    //private val _responseLiveData = MutableLiveData<Cursor>()
+    //private val subscriptions = CompositeDisposable()
 
-    val responseLiveDate: LiveData<Cursor> get() = _responseLiveData
+    // using StateFlow instead of LiveData
+    private val _responseFlow = MutableStateFlow(emptyList<DataModel>())
+    val responseFlow: StateFlow<List<DataModel>> get() = _responseFlow
+
+    //val responseLiveDate: LiveData<Cursor> get() = _responseLiveData
 
     init {
-        repository.responseObservable
+        viewModelScope.launch(Dispatchers.Main) {
+            repository.queryFlow
+                .debounce(350)
+                .flatMapLatest { Log.d("Kotlin", "Query $it"); flowOf(repository.suspendSearch(it)) }
+                .flowOn(Dispatchers.IO)
+                .collect {
+                    _responseFlow.value = it
+                }
+        }
+
+
+        /*repository.responseObservable
             .observeOn(AndroidSchedulers.mainThread())
             .subscribeBy {
                 if (it.isNotEmpty()) {
@@ -32,8 +41,8 @@ class MainViewModel @Inject constructor(private val repository: Repository) : Vi
                     _responseLiveData.value = matrixCursor
                 }
             }
-            .addTo(subscriptions)
+            .addTo(subscriptions)*/
     }
 
-    fun search(word: String) = repository.searchWord(word)
+    fun search(word: String) = repository.setQueryValue(word) //repository.searchWord(word)
 }
