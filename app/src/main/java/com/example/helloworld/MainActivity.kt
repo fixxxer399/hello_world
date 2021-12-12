@@ -6,6 +6,8 @@ import android.database.MatrixCursor
 import android.os.Bundle
 import android.provider.BaseColumns
 import android.view.Menu
+import android.widget.Button
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.cursoradapter.widget.CursorAdapter
@@ -21,6 +23,7 @@ class MainActivity : AppCompatActivity(), BaseActivity {
     private lateinit var searchView: SearchView
     private lateinit var cursorAdapter: CursorAdapter
     private val mainViewModel: MainViewModel by viewModel() // injecting ViewModel with Koin
+    private lateinit var textView: TextView
 
     //private val presenter by lazy { App.INSTANCE.presenter }
 
@@ -29,6 +32,15 @@ class MainActivity : AppCompatActivity(), BaseActivity {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        textView = findViewById(R.id.textView)
+        val start = findViewById<Button>(R.id.start)
+        val pause = findViewById<Button>(R.id.pause)
+        val stop = findViewById<TextView>(R.id.stop)
+
+        start.setOnClickListener { mainViewModel.start() }
+        pause.setOnClickListener { mainViewModel.pause() }
+        stop.setOnClickListener { stop() }
 
         //mainViewModel = ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
         //viewModelFactory = DaggerAppComponent.create().viewModelFactory()
@@ -59,6 +71,13 @@ class MainActivity : AppCompatActivity(), BaseActivity {
                     }
                     searchView.suggestionsAdapter.changeCursor(matrixCursor)
                 }
+            }
+            .launchIn(lifecycleScope)
+
+        mainViewModel.timerFlow
+            .flowWithLifecycle(lifecycle)
+            .onEach {
+                textView.text = it
             }
             .launchIn(lifecycleScope)
     }
@@ -95,6 +114,11 @@ class MainActivity : AppCompatActivity(), BaseActivity {
         })
 
         return super.onCreateOptionsMenu(menu)
+    }
+
+    private fun stop() {
+        textView.text = "00:00:00:000"
+        mainViewModel.stop()
     }
 
     override fun showResult(cursor: Cursor) {
